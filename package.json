@@ -3,8 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@tailwindcss/cli": "^4.0.15",
-    "@tailwindcss/postcss": "^4.0.15",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
@@ -14,7 +12,6 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-scripts": "5.0.1",
-    "tailwindcss": "^4.0.15",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -44,7 +41,13 @@
     ]
   },
   "devDependencies": {
+    "@types/node": "^22.13.11",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
     "prettier": "3.5.3",
+    "tailwindcss": "^4.0.15",
     "typescript": "^5.8.2"
   },
   "pnpm": {
