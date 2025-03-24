@@ -23,7 +23,8 @@ Sure! Here is a professional README for your project, formatted similarly to the
 ```markdown
 # SliceNMorph3D
 
-SliceNMorph3D is a web application for 3D model slicing and morphing. This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+SliceNMorph3D is a web application for 3D model slicing and morphing.
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Prerequisite
 
