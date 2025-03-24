@@ -1,16 +1,18 @@
-import React, { useState, useRef, useCallback } from "react";
-import { ReactComponent as UploadIcon } from './assets/uploadIcon.svg';
+import React, { useState, useRef } from "react";
+import { ReactComponent as UploadIcon } from '../../assets/uploadIcon.svg';
 
 interface ImportComponentProps {
   title: string;
   showDetails?: boolean;
   onFileImport?: (file: File) => void;
+  onUploadSuccess?: (file: File) => void; // Updated to accept a File parameter
 }
 
 const ImportComponent: React.FC<ImportComponentProps> = ({
   title,
   showDetails = false,
   onFileImport,
+  onUploadSuccess,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: '', type: null });
@@ -32,18 +34,25 @@ const ImportComponent: React.FC<ImportComponentProps> = ({
     return true;
   };
 
-  const handleFile = useCallback((file: File) => {
-    if (validateFile(file)) {
-      setAlertMessage({
-        text: `Successfully imported ${file.name}`,
-        type: 'success'
-      });
-      
-      if (onFileImport) {
-        onFileImport(file);
-      }
+  // In your handleFileImport function
+const handleFileImport = (file: File) => {
+  if (validateFile(file)) {
+    if (onFileImport) {
+      onFileImport(file);
     }
-  }, [onFileImport]);
+    
+    setAlertMessage({
+      text: 'File imported successfully!',
+      type: 'success'
+    });
+    
+    // Make sure to pass the file to the callback
+    if (onUploadSuccess) {
+      console.log("Calling onUploadSuccess with file:", file.name);
+      onUploadSuccess(file);
+    }
+  }
+};
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -69,14 +78,14 @@ const ImportComponent: React.FC<ImportComponentProps> = ({
     
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      handleFile(files[0]);
+      handleFileImport(files[0]); // Fixed: calling handleFileImport instead of handleFile
     }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFile(files[0]);
+      handleFileImport(files[0]); // Fixed: calling handleFileImport instead of handleFile
     }
   };
 
@@ -87,9 +96,10 @@ const ImportComponent: React.FC<ImportComponentProps> = ({
   // Close alert after 3 seconds
   React.useEffect(() => {
     if (alertMessage.type) {
+      console.log("Alert showing:", alertMessage);
       const timer = setTimeout(() => {
         setAlertMessage({ text: '', type: null });
-      }, 3000);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [alertMessage]);
@@ -129,8 +139,8 @@ const ImportComponent: React.FC<ImportComponentProps> = ({
       </div>
       
       {alertMessage.type && (
-        <div className={`mt-4 p-3 rounded-md ${
-          alertMessage.type === 'success' ? 'bg-green-800' : 'bg-red-800'
+        <div className={`fixed top-4 right-4 z-50 mt-4 p-4 rounded-md shadow-lg ${
+          alertMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'
         }`}>
           {alertMessage.text}
         </div>
