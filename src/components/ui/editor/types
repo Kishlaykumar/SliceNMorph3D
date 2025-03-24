@@ -1,0 +1,19 @@
+declare module 'three-js-csg' {
+    import * as THREE from 'three';
+  
+    export class ThreeBSP {
+      constructor(geometryOrMesh: THREE.BufferGeometry | THREE.Mesh | any);
+      
+      // Core CSG operations
+      subtract(other: ThreeBSP): ThreeBSP;
+      union(other: ThreeBSP): ThreeBSP;
+      intersect(other: ThreeBSP): ThreeBSP;
+      
+      // Convert back to Three.js mesh
+      toMesh(material?: THREE.Material): THREE.Mesh;
+      
+      // Optional helper methods that might exist in the library
+      toGeometry(): THREE.BufferGeometry;
+      clone(): ThreeBSP;
+    }
+  }

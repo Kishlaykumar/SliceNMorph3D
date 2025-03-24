@@ -11,7 +11,6 @@ const EditorPage: React.FC = () => {
     console.log("EditorPage: location state:", location.state);
     console.log("EditorPage: Received file:", uploadedFile);
     
-    // If no file is provided, redirect back to upload page
     if (!uploadedFile) {
       console.log("No file provided, redirecting to upload page");
       navigate('/upload');
@@ -19,7 +18,7 @@ const EditorPage: React.FC = () => {
   }, [uploadedFile, navigate, location]);
 
   return (
-    <div className="w-full h-full" style={{ width: '100%', height: '100%' }}>
+    <div className="w-full h-full col-start-2 col-span-11 row-span-12 grid grid-cols-6 grid-rows-6">
       <Editor initialFile={uploadedFile} />
     </div>
   );
