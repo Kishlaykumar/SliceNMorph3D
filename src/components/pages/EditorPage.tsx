@@ -18,7 +18,7 @@ const EditorPage: React.FC = () => {
   }, [uploadedFile, navigate, location]);
 
   return (
-    <div className="w-full h-full col-start-2 col-span-11 row-span-12 grid grid-cols-6 grid-rows-6">
+    <div className="w-full h-full mx-3 col-span-12 row-span-12 grid grid-cols-6 grid-rows-6">
       <Editor initialFile={uploadedFile} />
     </div>
   );
