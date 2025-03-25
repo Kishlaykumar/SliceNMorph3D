@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useThreeJsSetup } from "./editor/useThreeJsSetup";
 import { useModelLoading } from "./editor/useModelLoading";
-import { useMouseHandlers, EditorMode } from "./editor/useMouseHandlers";
+import { EditorMode } from "./editor/useMouseHandlers";
 import { useCuttingLogic } from "./editor/useCuttingLogic";
 
 interface EditorProps {
@@ -9,8 +9,6 @@ interface EditorProps {
 }
 
 const Editor: React.FC<EditorProps> = ({ initialFile }) => {
-
-
   // Create the ref correctly
   const canvasRef = useRef<HTMLDivElement>(null!);
 
@@ -19,50 +17,53 @@ const Editor: React.FC<EditorProps> = ({ initialFile }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Initialize Three.js scene
-  const { sceneRef, cameraRef, rendererRef, controlsRef, isInitialized } = useThreeJsSetup(canvasRef);
-
+  const { sceneRef, cameraRef, rendererRef, controlsRef } =
+    useThreeJsSetup(canvasRef);
 
   // Load model
-  const { modelRef, modelLoaded, loadingProgress, error: modelError } = useModelLoading({
+  const {
+    modelRef,
+    modelLoaded,
+    loadingProgress,
+    error: modelError,
+  } = useModelLoading({
     sceneRef,
-    initialFile
+    initialFile,
   });
 
   // Set error from model loading
-  React.useEffect(() => {
+  useEffect(() => {
     if (modelError) {
       setError(modelError);
     }
   }, [modelError]);
 
   // Cutting logic
-  const { performCut, toggleEditorMode, objectPartsRef } = useCuttingLogic({
-    sceneRef,
-    cameraRef,
-    rendererRef,
-    controlsRef,
-    modelRef,
-    setError,
-    setEditorMode
-  });
+  const { toggleEditorMode, objectPartsRef, exportSelectedPart } =
+    useCuttingLogic({
+      sceneRef,
+      cameraRef,
+      rendererRef,
+      controlsRef,
+      modelRef,
+      setError,
+      setEditorMode,
+    });
 
-  // Mouse handlers
-  const { setupMouseEventListeners } = useMouseHandlers({
-    canvasRef,
-    sceneRef,
-    cameraRef,
-    controlsRef,
-    modelRef,
-    editorMode,
-    performCut
-  });
+  // Add this state to track if any parts have been cut
+  const [hasCutParts, setHasCutParts] = useState(false);
 
-  // Setup mouse event listeners when scene is initialized
-  React.useEffect(() => {
-    if (isInitialized) {
-      setupMouseEventListeners();
+  // Update hasCutParts when objectPartsRef changes
+  useEffect(() => {
+    setHasCutParts(objectPartsRef.current.length > 0);
+  }, [objectPartsRef.current]);
+
+  // Ensure controls are enabled/disabled based on editor mode
+  useEffect(() => {
+    if (controlsRef.current) {
+      controlsRef.current.enabled = editorMode === EditorMode.View;
     }
-  }, [isInitialized, setupMouseEventListeners]);
+  }, [editorMode, controlsRef]);
 
   return (
     <section className="h-full w-full col-span-8 row-span-8 grid grid-cols-6 grid-rows-6 relative">
@@ -76,12 +77,14 @@ const Editor: React.FC<EditorProps> = ({ initialFile }) => {
       <div className="absolute top-12 left-4 bg-gray-800 bg-opacity-75 p-2 rounded-md z-10">
         <div className="flex flex-col space-y-2">
           <button
+            id="viewButton"
             className={`px-4 py-2 rounded ${editorMode === EditorMode.View ? "bg-blue-500" : "bg-gray-600"}`}
             onClick={() => toggleEditorMode(EditorMode.View)}
           >
             View
           </button>
           <button
+            id="cutButton"
             className={`px-4 py-2 rounded ${editorMode === EditorMode.Cut ? "bg-blue-500" : "bg-gray-600"}`}
             onClick={() => toggleEditorMode(EditorMode.Cut)}
             disabled={!modelLoaded}
@@ -89,11 +92,25 @@ const Editor: React.FC<EditorProps> = ({ initialFile }) => {
             Cut
           </button>
           <button
+            id="moveButton"
             className={`px-4 py-2 rounded ${editorMode === EditorMode.Move ? "bg-blue-500" : "bg-gray-600"}`}
             onClick={() => toggleEditorMode(EditorMode.Move)}
             disabled={objectPartsRef.current.length === 0}
           >
             Move
+          </button>
+          <button
+            id="downloadButton"
+            className={`px-4 py-2 rounded mt-4 ${
+              hasCutParts && editorMode === EditorMode.Move
+                ? "bg-green-600"
+                : "bg-gray-600"
+            }`}
+            onClick={exportSelectedPart}
+            disabled={!hasCutParts || editorMode !== EditorMode.Move}
+            title="Select a part first to download it"
+          >
+            Download Selected Part
           </button>
         </div>
       </div>
@@ -103,7 +120,6 @@ const Editor: React.FC<EditorProps> = ({ initialFile }) => {
         ref={canvasRef}
         className="w-full h-full col-span-6 row-span-6"
       ></div>
-
       {/* Loading progress indicator */}
       {loadingProgress > 0 && loadingProgress < 100 && (
         <div className="absolute top-4 right-4 bg-gray-800 p-3 rounded-md z-10">
