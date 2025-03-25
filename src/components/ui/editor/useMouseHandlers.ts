@@ -28,7 +28,9 @@ export function useMouseHandlers({
   performCut,
 }: UseMouseHandlersProps) {
   const [isCutting, setIsCutting] = useState(false);
-  const [cutStartPoint, setCutStartPoint] = useState<THREE.Vector3 | null>(null);
+  const [cutStartPoint, setCutStartPoint] = useState<THREE.Vector3 | null>(
+    null,
+  );
   const [cutEndPoint, setCutEndPoint] = useState<THREE.Vector3 | null>(null);
 
   const raycasterRef = useRef(new THREE.Raycaster());
@@ -37,8 +39,8 @@ export function useMouseHandlers({
   const cutLineRef = useRef<THREE.Line | null>(null);
 
   useEffect(() => {
-    console.log(EditorMode)
-  })
+    console.log(EditorMode);
+  });
 
   // Create a visual indicator for the cutting plane
   // const createCutVisualizer = useCallback(
@@ -100,15 +102,25 @@ export function useMouseHandlers({
       }
       // Update the plane
       if (cutPlaneRef.current) {
-        const direction = new THREE.Vector3().subVectors(endPoint, startPoint).normalize();
-        const midPoint = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+        const direction = new THREE.Vector3()
+          .subVectors(endPoint, startPoint)
+          .normalize();
+        const midPoint = new THREE.Vector3()
+          .addVectors(startPoint, endPoint)
+          .multiplyScalar(0.5);
         cutPlaneRef.current.position.copy(midPoint);
         if (cameraRef.current) {
           const cameraUp = cameraRef.current.up.clone();
-          let planeNormal = new THREE.Vector3().crossVectors(direction, cameraUp).normalize();
+          let planeNormal = new THREE.Vector3()
+            .crossVectors(direction, cameraUp)
+            .normalize();
           if (planeNormal.length() < 0.1) {
-            const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraRef.current.quaternion);
-            planeNormal = new THREE.Vector3().crossVectors(direction, cameraRight).normalize();
+            const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(
+              cameraRef.current.quaternion,
+            );
+            planeNormal = new THREE.Vector3()
+              .crossVectors(direction, cameraRight)
+              .normalize();
           }
           const target = new THREE.Vector3().addVectors(midPoint, planeNormal);
           cutPlaneRef.current.lookAt(target);
@@ -121,7 +133,7 @@ export function useMouseHandlers({
         }
       }
     },
-    [sceneRef, cameraRef, modelRef]
+    [sceneRef, cameraRef, modelRef],
   );
 
   // Function to get 3D position from mouse event
@@ -130,21 +142,32 @@ export function useMouseHandlers({
       if (!cameraRef.current || !modelRef.current) return null;
       const canvas = event.target as HTMLCanvasElement;
       const rect = canvas.getBoundingClientRect();
-      mouseRef.current.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+      mouseRef.current.x =
+        ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+      mouseRef.current.y =
+        -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-      const intersects = raycasterRef.current.intersectObject(modelRef.current, true);
+      const intersects = raycasterRef.current.intersectObject(
+        modelRef.current,
+        true,
+      );
       if (intersects.length > 0) {
         return intersects[0].point.clone();
       } else {
-        const vector = new THREE.Vector3(mouseRef.current.x, mouseRef.current.y, 0.5);
+        const vector = new THREE.Vector3(
+          mouseRef.current.x,
+          mouseRef.current.y,
+          0.5,
+        );
         vector.unproject(cameraRef.current);
         const dir = vector.sub(cameraRef.current.position).normalize();
         const distance = 10;
-        return new THREE.Vector3().copy(cameraRef.current.position).add(dir.multiplyScalar(distance));
+        return new THREE.Vector3()
+          .copy(cameraRef.current.position)
+          .add(dir.multiplyScalar(distance));
       }
     },
-    [cameraRef, modelRef]
+    [cameraRef, modelRef],
   );
 
   // Mouse down handler
@@ -293,6 +316,5 @@ export function useMouseHandlers({
     isCutting,
     cutStartPoint,
     cutEndPoint,
-    
   };
 }

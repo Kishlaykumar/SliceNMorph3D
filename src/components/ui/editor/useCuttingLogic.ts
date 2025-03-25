@@ -25,14 +25,10 @@ export function useCuttingLogic({
   setError,
   setEditorMode,
 }: UseCuttingLogicProps) {
-  const activeObjectsRef = useRef<THREE.Mesh[]>([]);
   const dragControlsRef = useRef<DragControls | null>(null);
   const objectPartsRef = useRef<THREE.Object3D[]>([]);
   const cuttingPlaneHelperRef = useRef<THREE.PlaneHelper | null>(null);
-  const cameraPositionBeforeCutRef = useRef<THREE.Vector3 | null>(null);
-  const cameraTargetBeforeCutRef = useRef<THREE.Vector3 | null>(null);
   const isProcessingRef = useRef<boolean>(false);
-  const originalModelRef = useRef<THREE.Object3D | null>(null);
   const cutCountRef = useRef<number>(0);
   const editorModeRef = useRef<EditorMode>(EditorMode.View);
   const mouseStartPointRef = useRef<THREE.Vector3 | null>(null);
@@ -45,7 +41,7 @@ export function useCuttingLogic({
   const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
 
   const cloneMaterial = (
-    material: THREE.Material | THREE.Material[]
+    material: THREE.Material | THREE.Material[],
   ): THREE.Material | THREE.Material[] => {
     if (Array.isArray(material)) {
       return material.map((mat) => mat.clone());
@@ -56,27 +52,72 @@ export function useCuttingLogic({
 
   const setupDragControls = useCallback(
     (objects: THREE.Object3D[]) => {
-      if (!cameraRef.current || !rendererRef.current) return;
-
-      if (dragControlsRef.current) {
-        dragControlsRef.current.dispose();
+      if (!cameraRef.current || !rendererRef.current) {
+        console.error(
+          "Cannot setup drag controls - missing camera or renderer",
+        );
+        return;
       }
 
+      // Dispose of existing drag controls
+      if (dragControlsRef.current) {
+        dragControlsRef.current.dispose();
+        dragControlsRef.current = null;
+      }
+
+      // Ensure orbit controls are disabled during dragging
+      if (controlsRef.current) {
+        controlsRef.current.enabled = false;
+      }
+
+      // Create new drag controls
       dragControlsRef.current = new DragControls(
         objects,
         cameraRef.current,
-        rendererRef.current.domElement
+        rendererRef.current.domElement,
       );
 
-      dragControlsRef.current.addEventListener("dragstart", () => {
-        if (controlsRef.current) controlsRef.current.enabled = false;
+      // Debug log objects being controlled
+      console.log("Setting up drag controls for objects:", objects);
+      console.log("First object position:", objects[0]?.position);
+
+      // Set up event listeners
+      dragControlsRef.current.addEventListener("dragstart", (event) => {
+        // Log drag start
+        console.log("Drag started:", event.object);
+        event.object.userData.isDragging = true;
+
+        // Ensure object is not constrained by its matrix
+        event.object.matrixAutoUpdate = true;
       });
 
-      dragControlsRef.current.addEventListener("dragend", () => {
-        if (controlsRef.current) controlsRef.current.enabled = true;
+      dragControlsRef.current.addEventListener("drag", (event) => {
+        // Log current position during drag for debugging
+        console.log("Dragging object at position:", event.object.position);
       });
+
+      dragControlsRef.current.addEventListener("dragend", (event) => {
+        console.log("Drag ended. Final position:", event.object.position);
+        event.object.userData.isDragging = false;
+      });
+
+      // Important - explicitly set to transformer enabled
+      dragControlsRef.current.enabled = true;
+
+      // Force object transformations to be enabled
+      objects.forEach((obj) => {
+        obj.matrixAutoUpdate = true;
+
+        // Ensure the object is properly attached to the scene
+        if (!obj.parent) {
+          console.log("Object has no parent, adding to scene");
+          sceneRef.current?.add(obj);
+        }
+      });
+
+      console.log("Drag controls initialized and activated");
     },
-    [cameraRef, rendererRef, controlsRef]
+    [cameraRef, rendererRef, controlsRef, sceneRef],
   );
 
   const finalizeGroupCut = useCallback(
@@ -91,7 +132,7 @@ export function useCuttingLogic({
           part2Group.children.length === 0
         ) {
           throw new Error(
-            "Cutting failed - one of the parts is empty. Try a different cut angle."
+            "Cutting failed - one of the parts is empty. Try a different cut angle.",
           );
         }
 
@@ -213,7 +254,7 @@ export function useCuttingLogic({
         console.error("Cut error:", err);
       }
     },
-    [sceneRef, modelRef, setEditorMode, setupDragControls, setError]
+    [sceneRef, modelRef, setEditorMode, setupDragControls, setError],
   );
 
   // Add the click handler to document in an effect
@@ -239,7 +280,7 @@ export function useCuttingLogic({
       setError(
         isProcessingRef.current
           ? "Already processing a cut operation"
-          : "Missing scene or model reference"
+          : "Missing scene or model reference",
       );
       return;
     }
@@ -274,7 +315,7 @@ export function useCuttingLogic({
 
     // Get camera right vector (perpendicular to viewing direction)
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(
-      cameraRef.current!.quaternion
+      cameraRef.current!.quaternion,
     );
 
     // Calculate plane normal by cross product of drag vector and camera right
@@ -324,148 +365,180 @@ export function useCuttingLogic({
 
           // Replace your processMesh function with this version:
 
-const processMesh = (index: number) => {
-  if (index >= totalMeshes) {
-    finalizeGroupCut(part1Group, part2Group);
+          const processMesh = (index: number) => {
+            if (index >= totalMeshes) {
+              finalizeGroupCut(part1Group, part2Group);
 
-    // After finalizing the cut, remove the cutting plane helper
-    if (cuttingPlaneHelperRef.current && sceneRef.current) {
-      sceneRef.current.remove(cuttingPlaneHelperRef.current);
-      cuttingPlaneHelperRef.current = null;
-    }
+              // After finalizing the cut, remove the cutting plane helper
+              if (cuttingPlaneHelperRef.current && sceneRef.current) {
+                sceneRef.current.remove(cuttingPlaneHelperRef.current);
+                cuttingPlaneHelperRef.current = null;
+              }
 
-    // Automatically switch to move mode after cutting
-    editorModeRef.current = EditorMode.Move;
-    setEditorMode(EditorMode.Move);
+              // Automatically switch to move mode after cutting
+              editorModeRef.current = EditorMode.Move;
+              setEditorMode(EditorMode.Move);
 
-    return;
-  }
+              return;
+            }
 
-  const mesh = meshes[index];
-  try {
-    // Get mesh world matrix
-    mesh.updateMatrixWorld();
-    const meshWorldMatrix = mesh.matrixWorld.clone();
-    
-    // Setup cutting plane with normal and position
-    const planeGeometry = new THREE.PlaneGeometry(1000, 1000);
-    const planeMesh = new THREE.Mesh(planeGeometry);
-    planeMesh.position.copy(modelCenter);
-    const defaultNormal = new THREE.Vector3(0, 0, 1);
-    const quaternion = new THREE.Quaternion().setFromUnitVectors(
-      defaultNormal,
-      cuttingPlane.normal
-    );
-    planeMesh.quaternion.copy(quaternion);
-    planeMesh.updateMatrix();
-    planeMesh.updateMatrixWorld(true);
-    
-    // Debug visualization
-    if (sceneRef.current) {
-      const debugHelper = new THREE.Mesh(
-        new THREE.PlaneGeometry(5, 5),
-        new THREE.MeshBasicMaterial({
-          color: 0x00ff00,
-          transparent: true,
-          opacity: 0.5,
-          side: THREE.DoubleSide,
-        })
-      );
-      debugHelper.position.copy(planeMesh.position);
-      debugHelper.quaternion.copy(planeMesh.quaternion);
-      sceneRef.current.add(debugHelper);
-      console.log("Added debug helper plane");
-      
-      setTimeout(() => {
-        if (sceneRef.current && debugHelper.parent === sceneRef.current) {
-          sceneRef.current.remove(debugHelper);
-        }
-      }, 5000);
-    }
-    
-    // CRITICAL FIX: Pre-transform the geometries directly
-    // Step 1: Clone the mesh geometry
-    const meshGeometry = mesh.geometry.clone();
-    
-    // Step 2: Calculate relative transformation matrix
-    const meshMatrixInverse = new THREE.Matrix4().copy(meshWorldMatrix).invert();
-    const localPlaneMatrix = planeMesh.matrixWorld.clone().multiply(meshMatrixInverse);
-    
-    // Step 3: Create a plane geometry that is pre-transformed
-    const cuttingGeometry = planeGeometry.clone();
-    cuttingGeometry.applyMatrix4(localPlaneMatrix);
-    
-    // Debug visualization of transformed plane
-    if (sceneRef.current) {
-      const localDebugHelper = new THREE.Mesh(
-        new THREE.PlaneGeometry(5, 5),
-        new THREE.MeshBasicMaterial({
-          color: 0x0000ff,
-          transparent: true,
-          opacity: 0.5,
-          side: THREE.DoubleSide,
-        })
-      );
-      // Apply the same transformation as the cutting geometry
-      localDebugHelper.geometry.applyMatrix4(localPlaneMatrix);
-      localDebugHelper.applyMatrix4(meshWorldMatrix); // Transform back to world space for debugging
-      localDebugHelper.matrixAutoUpdate = false;
-      
-      sceneRef.current.add(localDebugHelper);
-      console.log("Added transformed plane debug helper (blue)");
-      
-      setTimeout(() => {
-        if (sceneRef.current && localDebugHelper.parent === sceneRef.current) {
-          sceneRef.current.remove(localDebugHelper);
-        }
-      }, 5000);
-    }
-    
-    // Log detailed debug info
-    console.log("Mesh matrix:", meshWorldMatrix.elements);
-    console.log("Local plane matrix:", localPlaneMatrix.elements);
-    
-    // Create brushes with geometries (NO matrices - they're already transformed)
-    const meshBrush = new Brush(meshGeometry);
-    const planeBrush = new Brush(cuttingGeometry);
-    
-    // IMPORTANT: Use identity matrices since we pre-transformed the geometries
-    meshBrush.matrix.identity();
-    planeBrush.matrix.identity();
-    
-    // Perform CSG operations
-    const evaluator = new Evaluator();
-    const part1Brush = evaluator.evaluate(meshBrush, planeBrush, SUBTRACTION);
-    const part2Brush = evaluator.evaluate(meshBrush, planeBrush, INTERSECTION);
-    
-    console.log("CSG operations completed successfully");
-    console.log("Part 1 geometry vertex count:", part1Brush.geometry.attributes.position.count);
-    console.log("Part 2 geometry vertex count:", part2Brush.geometry.attributes.position.count);
-    
-    // Create meshes with the resulting geometry
-    const part1 = new THREE.Mesh(part1Brush.geometry, cloneMaterial(mesh.material));
-    const part2 = new THREE.Mesh(part2Brush.geometry, cloneMaterial(mesh.material));
-    
-    // Apply the original matrix to transform back to world space
-    part1.matrix.copy(mesh.matrix);
-    part2.matrix.copy(mesh.matrix); 
-    part1.matrixAutoUpdate = false;
-    part2.matrixAutoUpdate = false;
-    
-    // Add the parts to their respective groups
-    part1Group.add(part1);
-    part2Group.add(part2);
-    
-    processedCount++;
-    setError(`Processing cut: ${Math.round((processedCount / totalMeshes) * 100)}%`);
-    
-    // Process next mesh in the next frame
-    requestAnimationFrame(() => processMesh(index + 1));
-  } catch (err) {
-    console.error(`Error processing mesh ${index}:`, err);
-    requestAnimationFrame(() => processMesh(index + 1));
-  }
-};
+            const mesh = meshes[index];
+            try {
+              // Get mesh world matrix
+              mesh.updateMatrixWorld();
+              const meshWorldMatrix = mesh.matrixWorld.clone();
+
+              // Setup cutting plane with normal and position
+              const planeGeometry = new THREE.PlaneGeometry(1000, 1000);
+              const planeMesh = new THREE.Mesh(planeGeometry);
+              planeMesh.position.copy(modelCenter);
+              const defaultNormal = new THREE.Vector3(0, 0, 1);
+              const quaternion = new THREE.Quaternion().setFromUnitVectors(
+                defaultNormal,
+                cuttingPlane.normal,
+              );
+              planeMesh.quaternion.copy(quaternion);
+              planeMesh.updateMatrix();
+              planeMesh.updateMatrixWorld(true);
+
+              // Debug visualization
+              if (sceneRef.current) {
+                const debugHelper = new THREE.Mesh(
+                  new THREE.PlaneGeometry(5, 5),
+                  new THREE.MeshBasicMaterial({
+                    color: 0x00ff00,
+                    transparent: true,
+                    opacity: 0.5,
+                    side: THREE.DoubleSide,
+                  }),
+                );
+                debugHelper.position.copy(planeMesh.position);
+                debugHelper.quaternion.copy(planeMesh.quaternion);
+                sceneRef.current.add(debugHelper);
+                console.log("Added debug helper plane");
+
+                setTimeout(() => {
+                  if (
+                    sceneRef.current &&
+                    debugHelper.parent === sceneRef.current
+                  ) {
+                    sceneRef.current.remove(debugHelper);
+                  }
+                }, 5000);
+              }
+
+              // CRITICAL FIX: Pre-transform the geometries directly
+              // Step 1: Clone the mesh geometry
+              const meshGeometry = mesh.geometry.clone();
+
+              // Step 2: Calculate relative transformation matrix
+              const meshMatrixInverse = new THREE.Matrix4()
+                .copy(meshWorldMatrix)
+                .invert();
+              const localPlaneMatrix = planeMesh.matrixWorld
+                .clone()
+                .multiply(meshMatrixInverse);
+
+              // Step 3: Create a plane geometry that is pre-transformed
+              const cuttingGeometry = planeGeometry.clone();
+              cuttingGeometry.applyMatrix4(localPlaneMatrix);
+
+              // Debug visualization of transformed plane
+              if (sceneRef.current) {
+                const localDebugHelper = new THREE.Mesh(
+                  new THREE.PlaneGeometry(5, 5),
+                  new THREE.MeshBasicMaterial({
+                    color: 0x0000ff,
+                    transparent: true,
+                    opacity: 0.5,
+                    side: THREE.DoubleSide,
+                  }),
+                );
+                // Apply the same transformation as the cutting geometry
+                localDebugHelper.geometry.applyMatrix4(localPlaneMatrix);
+                localDebugHelper.applyMatrix4(meshWorldMatrix); // Transform back to world space for debugging
+                localDebugHelper.matrixAutoUpdate = false;
+
+                sceneRef.current.add(localDebugHelper);
+                console.log("Added transformed plane debug helper (blue)");
+
+                setTimeout(() => {
+                  if (
+                    sceneRef.current &&
+                    localDebugHelper.parent === sceneRef.current
+                  ) {
+                    sceneRef.current.remove(localDebugHelper);
+                  }
+                }, 5000);
+              }
+
+              // Log detailed debug info
+              console.log("Mesh matrix:", meshWorldMatrix.elements);
+              console.log("Local plane matrix:", localPlaneMatrix.elements);
+
+              // Create brushes with geometries (NO matrices - they're already transformed)
+              const meshBrush = new Brush(meshGeometry);
+              const planeBrush = new Brush(cuttingGeometry);
+
+              // IMPORTANT: Use identity matrices since we pre-transformed the geometries
+              meshBrush.matrix.identity();
+              planeBrush.matrix.identity();
+
+              // Perform CSG operations
+              const evaluator = new Evaluator();
+              const part1Brush = evaluator.evaluate(
+                meshBrush,
+                planeBrush,
+                SUBTRACTION,
+              );
+              const part2Brush = evaluator.evaluate(
+                meshBrush,
+                planeBrush,
+                INTERSECTION,
+              );
+
+              console.log("CSG operations completed successfully");
+              console.log(
+                "Part 1 geometry vertex count:",
+                part1Brush.geometry.attributes.position.count,
+              );
+              console.log(
+                "Part 2 geometry vertex count:",
+                part2Brush.geometry.attributes.position.count,
+              );
+
+              // Create meshes with the resulting geometry
+              const part1 = new THREE.Mesh(
+                part1Brush.geometry,
+                cloneMaterial(mesh.material),
+              );
+              const part2 = new THREE.Mesh(
+                part2Brush.geometry,
+                cloneMaterial(mesh.material),
+              );
+
+              // Apply the original matrix to transform back to world space
+              part1.matrix.copy(mesh.matrix);
+              part2.matrix.copy(mesh.matrix);
+              part1.matrixAutoUpdate = false;
+              part2.matrixAutoUpdate = false;
+
+              // Add the parts to their respective groups
+              part1Group.add(part1);
+              part2Group.add(part2);
+
+              processedCount++;
+              setError(
+                `Processing cut: ${Math.round((processedCount / totalMeshes) * 100)}%`,
+              );
+
+              // Process next mesh in the next frame
+              requestAnimationFrame(() => processMesh(index + 1));
+            } catch (err) {
+              console.error(`Error processing mesh ${index}:`, err);
+              requestAnimationFrame(() => processMesh(index + 1));
+            }
+          };
 
           processMesh(0);
         } catch (err) {
@@ -507,11 +580,11 @@ const processMesh = (index: number) => {
           .setFromObject(modelRef.current!)
           .getCenter(modelCenter);
         const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(
-          cameraRef.current!.quaternion
+          cameraRef.current!.quaternion,
         );
         const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
           cameraDirection,
-          modelCenter
+          modelCenter,
         );
         mouseStartPointRef.current = new THREE.Vector3();
         raycaster.ray.intersectPlane(plane, mouseStartPointRef.current);
@@ -523,7 +596,7 @@ const processMesh = (index: number) => {
         canvas.addEventListener("mousemove", handleMouseMove);
       }
     },
-    [cameraRef, rendererRef, modelRef]
+    [cameraRef, rendererRef, modelRef],
   );
 
   const handleMouseMove = useCallback(
@@ -553,11 +626,11 @@ const processMesh = (index: number) => {
       } else {
         // We didn't hit the model - create a plane that faces the camera and passes through the start point
         const viewPlaneNormal = new THREE.Vector3(0, 0, -1).applyQuaternion(
-          cameraRef.current!.quaternion
+          cameraRef.current!.quaternion,
         );
         const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
           viewPlaneNormal,
-          mouseStartPointRef.current
+          mouseStartPointRef.current,
         );
 
         // Find where the ray intersects this plane
@@ -569,11 +642,11 @@ const processMesh = (index: number) => {
       if (mouseEndPointRef.current) {
         updateCuttingPlanePreview(
           mouseStartPointRef.current,
-          mouseEndPointRef.current
+          mouseEndPointRef.current,
         );
       }
     },
-    [cameraRef, rendererRef, modelRef]
+    [cameraRef, rendererRef, modelRef],
   );
 
   const updateCuttingPlanePreview = useCallback(
@@ -589,7 +662,7 @@ const processMesh = (index: number) => {
 
       // Get camera right vector (perpendicular to viewing direction)
       const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(
-        cameraRef.current!.quaternion
+        cameraRef.current!.quaternion,
       );
 
       // Calculate plane normal by cross product of drag vector and camera right
@@ -616,12 +689,12 @@ const processMesh = (index: number) => {
       const planeHelper = new THREE.PlaneHelper(
         cuttingPlane,
         maxDimension,
-        0xff0000
+        0xff0000,
       );
       sceneRef.current.add(planeHelper);
       cuttingPlaneHelperRef.current = planeHelper;
     },
-    [sceneRef, modelRef, cameraRef]
+    [sceneRef, modelRef, cameraRef],
   );
 
   const handleMouseUp = useCallback(
@@ -647,7 +720,7 @@ const processMesh = (index: number) => {
         performCut();
       }
     },
-    [performCut, setError]
+    [performCut, setError],
   );
 
   useEffect(() => {
@@ -681,19 +754,16 @@ const processMesh = (index: number) => {
       // Set up raycaster
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
 
-      // Get all objects to check for intersection
-      const objectsToCheck = objectPartsRef.current;
-
-      // Check for intersections
+      // Check for intersections with parent groups first, not their children
       const intersects = raycasterRef.current.intersectObjects(
-        objectsToCheck,
-        true
+        objectPartsRef.current,
+        true,
       );
 
       // Reset previously selected part color if any
       if (selectedPartRef.current) {
         const originalMaterial = originalMaterialsRef.current.get(
-          selectedPartRef.current
+          selectedPartRef.current,
         );
         if (originalMaterial) {
           // Restore original material
@@ -711,8 +781,10 @@ const processMesh = (index: number) => {
 
       // If we clicked on a part, highlight it
       if (intersects.length > 0) {
-        // Find the parent part group that was clicked
+        // Find the top-level parent in objectPartsRef
         let clickedPart = intersects[0].object;
+
+        // Find the top-level parent group (part1Group or part2Group)
         while (
           clickedPart.parent &&
           !objectPartsRef.current.includes(clickedPart)
@@ -720,11 +792,13 @@ const processMesh = (index: number) => {
           clickedPart = clickedPart.parent;
         }
 
+        // Only proceed if we found a valid top-level part
         if (objectPartsRef.current.includes(clickedPart)) {
           // Store the selected part
           selectedPartRef.current = clickedPart;
+          console.log("Selected part group:", clickedPart.name);
 
-          // Store original materials if not already stored
+          // Store original materials for all meshes in the group
           if (!originalMaterialsRef.current.has(clickedPart)) {
             clickedPart.traverse((child) => {
               if (child instanceof THREE.Mesh) {
@@ -733,7 +807,7 @@ const processMesh = (index: number) => {
             });
           }
 
-          // Apply blue material to highlight
+          // Apply blue material to highlight the entire group
           const blueMaterial = new THREE.MeshStandardMaterial({
             color: 0x0088ff,
             roughness: 0.5,
@@ -746,12 +820,52 @@ const processMesh = (index: number) => {
             }
           });
 
-          // Log the clicked model
-          console.log("Selected part:", clickedPart);
+          // Merge all meshes into a single mesh
+          const meshes: THREE.Mesh[] = [];
+          clickedPart.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              meshes.push(child);
+            }
+          });
+
+          // Use BufferGeometry instead of Geometry
+          const mergedGeometry = new THREE.BufferGeometry();
+          for (const mesh of meshes) {
+            mesh.updateMatrix();
+            mergedGeometry.copy(mesh.geometry).applyMatrix4(mesh.matrix);
+          }
+
+          let mergedMaterial: THREE.Material | THREE.Material[];
+          if (meshes.length > 0) {
+            mergedMaterial = meshes[0].material; // Use the material of the first mesh
+          } else {
+            mergedMaterial = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+            }); // Default white material
+          }
+          const mergedMesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
+
+          // Apply the world transformation of the clickedPart to the mergedMesh
+          mergedMesh.applyMatrix4(clickedPart.matrixWorld);
+
+          // Replace the group with the merged mesh in the scene
+          sceneRef.current.remove(clickedPart);
+          sceneRef.current.add(mergedMesh);
+
+          // Update objectPartsRef
+          const index = objectPartsRef.current.indexOf(clickedPart);
+          if (index > -1) {
+            objectPartsRef.current.splice(index, 1, mergedMesh);
+          }
+
+          // Setup drag controls for the merged mesh
+          setupDragControls([mergedMesh]);
+
+          console.log("Set up drag controls for merged mesh");
         }
       }
     },
-    [cameraRef, rendererRef, sceneRef, objectPartsRef]
+    [cameraRef, rendererRef, sceneRef, objectPartsRef, setupDragControls],
   );
 
   const toggleEditorMode = useCallback(
@@ -766,16 +880,19 @@ const processMesh = (index: number) => {
         }
       }
 
-      if (mode === EditorMode.Cut && cutCountRef.current > 0) {
-        setError(
-          "Model can only be cut once. Use Reset if you want to cut again."
+      if (mode === EditorMode.Move && objectPartsRef.current.length > 0) {
+        console.log(
+          "Setting up drag controls for parts:",
+          objectPartsRef.current,
         );
-        editorModeRef.current = EditorMode.Move;
-        setEditorMode(EditorMode.Move);
-        if (objectPartsRef.current.length > 0) {
-          setupDragControls(objectPartsRef.current);
+        setupDragControls(objectPartsRef.current);
+
+        // Add model click handler if we have cut parts and are in move mode
+        if (cutCountRef.current > 0) {
+          document.removeEventListener("click", handleModelClick); // Remove first to prevent duplicates
+          document.addEventListener("click", handleModelClick);
+          console.log("Added click handler for part selection");
         }
-        return;
       }
 
       editorModeRef.current = mode;
@@ -797,7 +914,7 @@ const processMesh = (index: number) => {
         document.removeEventListener("click", handleModelClick);
       }
     },
-    [controlsRef, setEditorMode, setupDragControls, setError, handleModelClick]
+    [controlsRef, setEditorMode, setupDragControls, setError, handleModelClick],
   );
 
   useEffect(() => {
@@ -861,7 +978,7 @@ const processMesh = (index: number) => {
           console.error("Error exporting model:", error);
           setError(`Export failed: ${error.message || "Unknown error"}`);
         },
-        options
+        options,
       );
     } catch (err) {
       console.error("Error during export:", err);
@@ -882,15 +999,15 @@ const processMesh = (index: number) => {
 
     if (viewButton)
       viewButton.addEventListener("click", () =>
-        toggleEditorMode(EditorMode.View)
+        toggleEditorMode(EditorMode.View),
       );
     if (cutButton)
       cutButton.addEventListener("click", () =>
-        toggleEditorMode(EditorMode.Cut)
+        toggleEditorMode(EditorMode.Cut),
       );
     if (moveButton)
       moveButton.addEventListener("click", () =>
-        toggleEditorMode(EditorMode.Move)
+        toggleEditorMode(EditorMode.Move),
       );
     if (downloadButton)
       downloadButton.addEventListener("click", exportSelectedPart);
@@ -898,22 +1015,21 @@ const processMesh = (index: number) => {
     return () => {
       if (viewButton)
         viewButton.removeEventListener("click", () =>
-          toggleEditorMode(EditorMode.View)
+          toggleEditorMode(EditorMode.View),
         );
       if (cutButton)
         cutButton.removeEventListener("click", () =>
-          toggleEditorMode(EditorMode.Cut)
+          toggleEditorMode(EditorMode.Cut),
         );
       if (moveButton)
         moveButton.removeEventListener("click", () =>
-          toggleEditorMode(EditorMode.Move)
+          toggleEditorMode(EditorMode.Move),
         );
       if (downloadButton)
         downloadButton.removeEventListener("click", exportSelectedPart);
     };
   }, [toggleEditorMode, exportSelectedPart]);
 
-  // Include the exportSelectedPart in the return
   return {
     performCut,
     objectPartsRef,
