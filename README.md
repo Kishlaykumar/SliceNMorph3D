@@ -1,4 +1,4 @@
-````markdown
+```markdown
 # SliceNMorph3D
 
 SliceNMorph3D is a web application for 3D model slicing and morphing .
@@ -15,7 +15,6 @@ pnpm install   # install dependencies
 pnpm lint      # run eslint
 pnpm format    # run prettier
 ```
-````
 
 ### Running the App
 
@@ -32,3 +31,4 @@ pnpm build     # production build
 - TypeScript
 - React
 - Create React App
+

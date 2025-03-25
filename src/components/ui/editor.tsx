@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useThreeJsSetup } from "./editor/useThreeJsSetup";
 import { useModelLoading } from "./editor/useModelLoading";
-import { EditorMode } from "./editor/useMouseHandlers";
+import { useMouseHandlers, EditorMode } from "./editor/useMouseHandlers";
 import { useCuttingLogic } from "./editor/useCuttingLogic";
 
 interface EditorProps {
@@ -17,18 +17,12 @@ const Editor: React.FC<EditorProps> = ({ initialFile }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Initialize Three.js scene
-  const { sceneRef, cameraRef, rendererRef, controlsRef } =
-    useThreeJsSetup(canvasRef);
+  const { sceneRef, cameraRef, rendererRef, controlsRef, isInitialized } = useThreeJsSetup(canvasRef);
 
   // Load model
-  const {
-    modelRef,
-    modelLoaded,
-    loadingProgress,
-    error: modelError,
-  } = useModelLoading({
+  const { modelRef, modelLoaded, loadingProgress, error: modelError } = useModelLoading({
     sceneRef,
-    initialFile,
+    initialFile
   });
 
   // Set error from model loading
@@ -39,16 +33,15 @@ const Editor: React.FC<EditorProps> = ({ initialFile }) => {
   }, [modelError]);
 
   // Cutting logic
-  const { toggleEditorMode, objectPartsRef, exportSelectedPart } =
-    useCuttingLogic({
-      sceneRef,
-      cameraRef,
-      rendererRef,
-      controlsRef,
-      modelRef,
-      setError,
-      setEditorMode,
-    });
+  const { performCut, toggleEditorMode, objectPartsRef, exportSelectedPart } = useCuttingLogic({
+    sceneRef,
+    cameraRef,
+    rendererRef,
+    controlsRef,
+    modelRef,
+    setError,
+    setEditorMode
+  });
 
   // Add this state to track if any parts have been cut
   const [hasCutParts, setHasCutParts] = useState(false);
@@ -99,12 +92,10 @@ const Editor: React.FC<EditorProps> = ({ initialFile }) => {
           >
             Move
           </button>
-          <button
+          <button 
             id="downloadButton"
             className={`px-4 py-2 rounded mt-4 ${
-              hasCutParts && editorMode === EditorMode.Move
-                ? "bg-green-600"
-                : "bg-gray-600"
+              hasCutParts && editorMode === EditorMode.Move ? "bg-green-600" : "bg-gray-600"
             }`}
             onClick={exportSelectedPart}
             disabled={!hasCutParts || editorMode !== EditorMode.Move}
