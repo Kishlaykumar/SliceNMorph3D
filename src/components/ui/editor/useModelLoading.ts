@@ -19,43 +19,57 @@ export function useModelLoading({ sceneRef, initialFile }: UseModelLoadingProps)
       setError("Scene not initialized");
       return;
     }
-
+  
     setError(null);
     setLoadingProgress(0);
-
+  
     // Remove previous model if exists
     if (modelRef.current) {
+      // First traverse and clear any userData flags
+      modelRef.current.traverse((object) => {
+        if (object.userData) {
+          object.userData.isOriginalModel = false;
+        }
+      });
+      
+      // Then remove from scene
       sceneRef.current.remove(modelRef.current);
       modelRef.current = null;
     }
-
+  
     // Create object URL for the file
     const objectUrl = URL.createObjectURL(file);
-
+  
     // Load the model with GLTFLoader
     const loader = new GLTFLoader();
-
+  
     loader.load(
       objectUrl,
       (gltf) => {
         // Success callback
         const model = gltf.scene;
-
+  
+        // Mark the entire model and all its children as original
+        model.userData.isOriginalModel = true;
+        model.traverse((object) => {
+          object.userData.isOriginalModel = true;
+        });
+  
         // Center the model
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-
+  
         // Normalize model size
         const maxDim = Math.max(size.x, size.y, size.z);
         const scale = 2 / maxDim;
         model.scale.set(scale, scale, scale);
-
+  
         // Center model
         model.position.x = -center.x * scale;
         model.position.y = -center.y * scale;
         model.position.z = -center.z * scale;
-
+  
         // Add model to scene
         if (sceneRef.current) {
           sceneRef.current.add(model);
@@ -65,7 +79,7 @@ export function useModelLoading({ sceneRef, initialFile }: UseModelLoadingProps)
         } else {
           setError("Failed to add model to scene");
         }
-
+  
         // Clean up object URL
         URL.revokeObjectURL(objectUrl);
       },
