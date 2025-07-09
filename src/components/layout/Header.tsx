@@ -1,5 +1,5 @@
-import React from 'react';
-import { ReactComponent as LogoIcon } from '../../assets/logo.svg';
+import React from "react";
+import { ReactComponent as LogoIcon } from "../../assets/logo.svg";
 
 const Header: React.FC = () => {
   return (

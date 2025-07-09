@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState, RefObject } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { useRef, useEffect, useState, RefObject } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 // Change the parameter type to match React's RefObject
 export function useThreeJsSetup(canvasRef: RefObject<HTMLDivElement>) {
@@ -30,7 +30,7 @@ export function useThreeJsSetup(canvasRef: RefObject<HTMLDivElement>) {
       60,
       canvasRef.current.clientWidth / canvasRef.current.clientHeight,
       0.1,
-      1000
+      1000,
     );
     camera.position.set(0, 2, 5);
     cameraRef.current = camera;
@@ -39,7 +39,7 @@ export function useThreeJsSetup(canvasRef: RefObject<HTMLDivElement>) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(
       canvasRef.current.clientWidth,
-      canvasRef.current.clientHeight
+      canvasRef.current.clientHeight,
     );
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -84,13 +84,13 @@ export function useThreeJsSetup(canvasRef: RefObject<HTMLDivElement>) {
         // Safe to use canvasRef.current here
         const width = canvasRef.current.clientWidth;
         // ...
-     
-      const height = canvasRef.current.clientHeight;
 
-      cameraRef.current.aspect = width / height;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(width, height);
-    }
+        const height = canvasRef.current.clientHeight;
+
+        cameraRef.current.aspect = width / height;
+        cameraRef.current.updateProjectionMatrix();
+        rendererRef.current.setSize(width, height);
+      }
     };
 
     window.addEventListener("resize", handleResize);
@@ -128,7 +128,6 @@ export function useThreeJsSetup(canvasRef: RefObject<HTMLDivElement>) {
     cameraRef,
     rendererRef,
     controlsRef,
-    isInitialized
+    isInitialized,
   };
 }
-
